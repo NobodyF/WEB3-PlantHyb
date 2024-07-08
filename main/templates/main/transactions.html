@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #transaction-container {
+            max-width: 800px;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        h2, h3, h4 {
+            color: #343a40;
+        }
+
+        p {
+            color: #6c757d;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .transaction-box {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            background-color: #f8f9fa;
+        }
+
+        strong {
+            color: #007bff;
+        }
+
+        .development-sign {
+            text-align: center;
+            font-size: 36px;
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="transaction-container">
+    <h2>Ethereum Address: {{ eth_address }}</h2>
+    <h3>Ethereum Balance: {{ eth_balance }} ETH</h3>
+
+    <h4>Transactions:</h4>
+    <ul>
+        {% for transaction in transactions %}
+            <li class="transaction-box">
+                <strong>From:</strong> {{ transaction.from }}<br>
+                <strong>To:</strong> {{ transaction.to }}<br>
+                <strong>Amount:</strong> {{ transaction.amount }} ETH<br>
+                <strong>Message:</strong> {{ transaction.message }}<br>
+                <strong>Timestamp:</strong> {{ transaction.timestamp }}<br>
+                <strong>Account:</strong> {{ transaction.account }}<br>
+                <strong>Keyword:</strong> {{ transaction.keyword }}<br>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <div class="development-sign">
+        Still in Develop...
+    </div>
+</div>
+
+</body>
+</html>
+
+{% comment %} IGNORE CODE {% endcomment %}

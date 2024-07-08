@@ -1,0 +1,24 @@
+<!-- main/owned_plants.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owned Plants</title>
+    <!-- Add your CSS styles here -->
+</head>
+<body>
+    <div class="header">
+        <h1>Owned Plants</h1>
+    </div>
+    <div class="content">
+        <ul>
+            {% for transaction in user_plant_transactions %}
+                <li>{{ transaction.plant.plant_name }} - <a href="{% url 'main:plant_detail' transaction.plant.id %}">View Details</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>

@@ -1,0 +1,297 @@
+
+{% extends 'index.html' %}
+
+{% block content %}
+<style>
+    .navbar {
+        /* Ensure navbar stays on top */
+        position: fixed;
+        top: 0;
+        width: 100%;
+        z-index: 1000; /* Adjust z-index as needed */
+    }
+    
+    .form-wrapper {
+        /* Ensure proper spacing between navbar and form */
+        margin-top: 150px; /* Adjust this value according to your navbar height */
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+    
+   
+    
+    .card {
+        background-color: #fff;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 1200px;
+    }
+</style>
+
+<div class="container mt-5">
+    <div class="form-wrapper">
+    <div class="card p-4" style="background-color: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+        <h2 class="text-center mb-4" style="color: #6c757d;">Pievienot augu (koku)</h2>
+
+        <form method="post" action="{% url 'main:add_plant' %}" class="row g-3">
+            {% csrf_token %}
+            <div class="col-md-6">
+                <label for="plant_name" class="form-label" style="color: #495057;">Auga nosaukums:</label>
+                <input type="text" id="plant_name" name="plant_name" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-6">
+                <label for="plant_description" class="form-label" style="color: #495057;">Auga apraksts:</label>
+                <textarea id="plant_description" name="plant_description" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required></textarea>
+            </div>
+
+            <div class="col-md-4">
+                <label for="tree_height" class="form-label" style="color: #495057;">Koks: augums (cm):</label>
+                <input type="number" id="tree_height" name="tree_height" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="tree_growth_type" class="form-label" style="color: #495057;">Koks: augšanas veids:</label>
+                <input type="text" id="tree_growth_type" name="tree_growth_type" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="tree_habit" class="form-label" style="color: #495057;">Tikai šķirnēm ar zarotu augšanas veidu: Koks: habituss:</label>
+                <input type="text" id="tree_habit" name="tree_habit" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="tree_fruit_production" class="form-label" style="color: #495057;">Koks: augļu ražošanas veids:</label>
+                <input type="text" id="tree_fruit_production" name="tree_fruit_production" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="single_year_stem_thickness" class="form-label" style="color: #495057;">Viengadīgs dzinums: resnums:</label>
+                <input type="number" id="single_year_stem_thickness" name="single_year_stem_thickness" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+
+
+            <div class="col-md-4">
+                <label for="interleaf_length" class="form-label" style="color: #495057;">Viengadīgs dzinums: starplapu posma garums:</label>
+                <input type="number" id="interleaf_length" name="interleaf_length" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="sun_side_color" class="form-label" style="color: #495057;">Viengadīgs dzinums: krāsa saules pusē:</label>
+                <input type="text" id="sun_side_color" name="sun_side_color" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="branch_puffiness" class="form-label" style="color: #495057;">Viengadīgs dzinums: pūkojums (dzinuma tālākajā daļā):</label>
+                <input type="text" id="branch_puffiness" name="branch_puffiness" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="branch_lenticels_count" class="form-label" style="color: #495057;">Viengadīgs dzinums: lenticeļu skaits:</label>
+                <input type="number" id="branch_lenticels_count" name="branch_lenticels_count" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="leaf_condition" class="form-label" style="color: #495057;">Lapas plātne: stāvoklis attiecībā pret dzinumu:</label>
+                <input type="text" id="leaf_condition" name="leaf_condition" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="leaf_length" class="form-label" style="color: #495057;">Lapas plātne: garums:</label>
+                <input type="number" id="leaf_length" name="leaf_length" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="leaf_width" class="form-label" style="color: #495057;">Lapas plātne: platums:</label>
+                <input type="number" id="leaf_width" name="leaf_width" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="leaf_length_width_ratio" class="form-label" style="color: #495057;">Lapas plātne: garuma un platuma attiecība:</label>
+                <input type="number" id="leaf_length_width_ratio" name="leaf_length_width_ratio" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="leaf_green_intensity" class="form-label" style="color: #495057;">Lapas plātne: zaļās krāsas intensitāte:</label>
+                <input type="number" id="leaf_green_intensity" name="leaf_green_intensity" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="leaf_margin_serration" class="form-label" style="color: #495057;">Lapas plātne: malas zobojums (augšējā daļā):</label>
+                <input type="text" id="leaf_margin_serration" name="leaf_margin_serration" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="leaf_under_surface_puffiness" class="form-label" style="color: #495057;">Lapas plātne: apakšpuses pūkojums:</label>
+                <input type="text" id="leaf_under_surface_puffiness" name="leaf_under_surface_puffiness" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="petiole_length" class="form-label" style="color: #495057;">Lapas kātiņš: garums:</label>
+                <input type="number" id="petiole_length" name="petiole_length" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="petiole_anthocyanin_coloration" class="form-label" style="color: #495057;">Lapas kātiņš: pamatnes antociāna krāsojums:</label>
+                <input type="text" id="petiole_anthocyanin_coloration" name="petiole_anthocyanin_coloration" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+
+            
+            <div class="col-md-4">
+                <label for="dominant_color_before_blooming" class="form-label" style="color: #495057;">Zieds: dominējošā krāsa īsi pirms izplaukšanas:</label>
+                <input type="text" id="dominant_color_before_blooming" name="dominant_color_before_blooming" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="flower_diameter" class="form-label" style="color: #495057;">Zieds: diametrs, horizontāli piespiežot ziedlapas:</label>
+                <input type="number" id="flower_diameter" name="flower_diameter" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="flower_arrangement" class="form-label" style="color: #495057;">Zieds: ziedlapu sakārtojums:</label>
+                <input type="text" id="flower_arrangement" name="flower_arrangement" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="stamen_position_relative_to_pistils" class="form-label" style="color: #495057;">Zieds: drīksnas novietojums attiecībā pret putekšņlapām:</label>
+                <input type="text" id="stamen_position_relative_to_pistils" name="stamen_position_relative_to_pistils" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="anthocyanin_coloration_degree_of_fruit_abscission" class="form-label" style="color: #495057;">Augļaizmetnis: antociāna krāsojuma pakāpe:</label>
+                <input type="text" id="anthocyanin_coloration_degree_of_fruit_abscission" name="anthocyanin_coloration_degree_of_fruit_abscission" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+
+            
+            <div class="col-md-4">
+                <label for="fruit_size" class="form-label" style="color: #495057;">Auglis: lielums:</label>
+                <input type="text" id="fruit_size" name="fruit_size" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="fruit_length" class="form-label" style="color: #495057;">Auglis: garums:</label>
+                <input type="number" id="fruit_length" name="fruit_length" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="fruit_diameter" class="form-label" style="color: #495057;">Auglis: diametrs:</label>
+                <input type="number" id="fruit_diameter" name="fruit_diameter" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="fruit_length_diameter_ratio" class="form-label" style="color: #495057;">Auglis: garuma un diametra attiecība:</label>
+                <input type="number" id="fruit_length_diameter_ratio" name="fruit_length_diameter_ratio" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="fruit_base_shape" class="form-label" style="color: #495057;">Auglis: pamatforma:</label>
+                <input type="text" id="fruit_base_shape" name="fruit_base_shape" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+
+            
+            <div class="col-md-4">
+                <label for="fruit_groove" class="form-label" style="color: #495057;">Auglis: ribojums:</label>
+                <input type="text" id="fruit_groove" name="fruit_groove" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="calyx_contraction" class="form-label" style="color: #495057;">Auglis: savilkums kausa galā:</label>
+                <input type="text" id="calyx_contraction" name="calyx_contraction" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="calyx_size" class="form-label" style="color: #495057;">Auglis: kauslapu lielums:</label>
+                <input type="text" id="calyx_size" name="calyx_size" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="calyx_length" class="form-label" style="color: #495057;">Auglis: kauslapu garums:</label>
+                <input type="number" id="calyx_length" name="calyx_length" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="bark_russeting" class="form-label" style="color: #495057;">Auglis: mizas apsarme:</label>
+                <input type="text" id="bark_russeting" name="bark_russeting" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="bark_oiliness" class="form-label" style="color: #495057;">Auglis: mizas taukainums:</label>
+                <input type="text" id="bark_oiliness" name="bark_oiliness" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+
+            
+            <div class="col-md-4">
+                <label for="fruit_surface_color_area" class="form-label" style="color: #495057;">Auglis: virskrāsas klātais laukums:</label>
+                <input type="text" id="fruit_surface_color_area" name="fruit_surface_color_area" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="fruit_surface_color_tone" class="form-label" style="color: #495057;">Auglis: virskrāsas tonis (bez apsarmes):</label>
+                <input type="text" id="fruit_surface_color_tone" name="fruit_surface_color_tone" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="fruit_surface_color_intensity" class="form-label" style="color: #495057;">Auglis: virskrāsas intensitāte:</label>
+                <input type="number" id="fruit_surface_color_intensity" name="fruit_surface_color_intensity" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="fruit_surface_color_coverage" class="form-label" style="color: #495057;">Auglis: virskrāsas noklājums:</label>
+                <input type="text" id="fruit_surface_color_coverage" name="fruit_surface_color_coverage" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+
+            
+            <div class="col-md-4">
+                <label for="stripe_width" class="form-label" style="color: #495057;">Auglis: svītru platums:</label>
+                <input type="number" id="stripe_width" name="stripe_width" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+
+            </div>
+            <div class="col-md-4">
+                <label for="fruit_side_rust" class="form-label" style="color: #495057;">Auglis: rūsinājums uz augļa sāniem:</label>
+                <input type="text" id="fruit_side_rust" name="fruit_side_rust" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="calyx_rust" class="form-label" style="color: #495057;">Auglis: rūsinājums kausa bedrītē:</label>
+                <input type="text" id="calyx_rust" name="calyx_rust" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="groove_count" class="form-label" style="color: #495057;">Auglis: lenticeļu skaits:</label>
+                <input type="number" id="groove_count" name="groove_count" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="groove_size" class="form-label" style="color: #495057;">Auglis: lenticeļu lielums:</label>
+                <input type="number" id="groove_size" name="groove_size" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="pedicel_length" class="form-label" style="color: #495057;">Auglis: kātiņa garums:</label>
+                <input type="number" id="pedicel_length" name="pedicel_length" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="pedicel_thickness" class="form-label" style="color: #495057;">Auglis: kātiņa resnums:</label>
+                <input type="number" id="pedicel_thickness" name="pedicel_thickness" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+
+            
+            <div class="col-md-4">
+                <label for="pedicel_pit_depth" class="form-label" style="color: #495057;">Auglis: kātiņa bedrītes dziļums:</label>
+                <input type="number" id="pedicel_pit_depth" name="pedicel_pit_depth" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="pedicel_pit_width" class="form-label" style="color: #495057;">Auglis: kātiņa bedrītes platums:</label>
+                <input type="number" id="pedicel_pit_width" name="pedicel_pit_width" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="calyx_pit_depth" class="form-label" style="color: #495057;">Auglis: kausa bedrītes dziļums:</label>
+                <input type="number" id="calyx_pit_depth" name="calyx_pit_depth" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="calyx_pit_width" class="form-label" style="color: #495057;">Auglis: kausa bedrītes platums:</label>
+                <input type="number" id="calyx_pit_width" name="calyx_pit_width" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="flesh_density" class="form-label" style="color: #495057;">Auglis: mīkstuma blīvums:</label>
+                <input type="text" id="flesh_density" name="flesh_density" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="flesh_color" class="form-label" style="color: #495057;">Auglis: mīkstuma krāsa:</label>
+                <input type="text" id="flesh_color" name="flesh_color" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+
+            
+            <div class="col-md-4">
+                <label for="seed_chamber_opening" class="form-label" style="color: #495057;">Auglis: sēklu cirkņu atvērums (šķērsgriezumā):</label>
+                <input type="text" id="seed_chamber_opening" name="seed_chamber_opening" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="flowering_onset" class="form-label" style="color: #495057;">Ziedēšanas sākums:</label>
+                <input type="text" id="flowering_onset" name="flowering_onset" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-md-4">
+                <label for="harvest_readiness" class="form-label" style="color: #495057;">Auglisu novākšanas gatavība:</label>
+                <input type="text" id="harvest_readiness" name="harvest_readiness" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+
+            
+            <div class="col-md-4">
+                <label for="consumption_readiness" class="form-label" style="color: #495057;">Augļu lietošanas gatavība:</label>
+                <input type="text" id="consumption_readiness" name="consumption_readiness" class="form-control" style="border: 1px solid #ced4da; border-radius: 4px;" required>
+            </div>
+            <div class="col-12 text-center">
+                <button type="submit" class="btn btn-primary" style="background-color: #5a6268; border-color: #5a6268;">Pievienot augli</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

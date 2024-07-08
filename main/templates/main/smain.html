@@ -1,0 +1,74 @@
+{% extends 'index.html' %}
+{% load static %}
+
+{% block content %}
+    
+    <body>
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <br>
+                    <h1>Welcome to Plant Hybridization</h1>
+                    <p>Small steps in a big world</p>
+                    {% comment %} <a href="{% url 'main:display_transactions' %}" class="btn btn-primary" style="background-color: #6f42c1; border: 1px solid #6f42c1;">View Transactions</a> {% endcomment %}
+                </div>
+            </div>
+        </section>
+
+        <section class="about">
+            <div class="container">
+                <h2>About Our Page</h2>
+                <p>Explore the future of plant breeding with our innovative platform.</p>
+                <p>It's about quality.</p>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="container">
+                <h2>Key Features</h2>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <img src="{% static 'icons/genetic.jpg' %}" alt="Feature Icon 1">
+                    </div>
+                    <div class="feature-text">
+                        <h3>Advanced Genetics</h3>
+                        <p>Utilize cutting-edge genetic techniques to create new plant hybrids with desired traits.</p>
+                    </div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <img src="{% static 'icons/ai.jpg' %}" alt="Feature Icon 2">
+                    </div>
+                    <div class="feature-text">
+                        <h3>Community</h3>
+                        <p>Use ready plants from other users to achieve even better results together.</p>
+                    </div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <img src="{% static 'icons/flower.jpg' %}" alt="Feature Icon 3">
+                    </div>
+                    <div class="feature-text">
+                        <h3>Data Analytics</h3>
+                        <p>Gather insights from comprehensive data analytics to make informed breeding decisions.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </body>
+
+    <style>
+        html {
+            overflow: scroll;
+            overflow-x: hidden;
+        }
+        ::-webkit-scrollbar {
+            width: 0;  /* Remove scrollbar space */
+            background: transparent;  /* Optional: just make scrollbar invisible */
+        }
+        /* Optional: show position indicator in red */
+        ::-webkit-scrollbar-thumb {
+            background: #FF0000;
+        }
+    </style>
+{% endblock %}

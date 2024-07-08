@@ -1,0 +1,361 @@
+{% extends 'index.html' %}
+
+{% block content %}
+
+<style>
+    /*custom font*/
+    @import url(https://fonts.googleapis.com/css?family=Montserrat);
+    
+    /*basic reset*/
+    * {margin: 0; padding: 0;}
+    
+    html {
+        overflow: scroll;
+        overflow-x: hidden;
+    }
+    ::-webkit-scrollbar {
+        width: 0;  /* Remove scrollbar space */
+        background: transparent;  /* Optional: just make scrollbar invisible */
+    }
+    /* Optional: show position indicator in red */
+    ::-webkit-scrollbar-thumb {
+        background: #FF0000;
+    }
+
+
+    body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        display: flex;
+        padding-top: 60px;
+        
+    }
+    
+    /*form styles*/
+    #msform {
+        width: 900px;
+      
+        margin: 50px auto;
+        text-align: center;
+        position: relative;
+    }
+    #msform fieldset {
+        background: white;
+        border: 0 none;
+        border-radius: 3px;
+        box-shadow: 0 0 15px 1px rgba(0, 0, 0, 0.4);
+        padding: 20px 30px;
+        box-sizing: border-box;
+        width: 80%;
+        margin: 0 10%;
+        
+        /*stacking fieldsets above each other*/
+        position: relative;
+    }
+    /*Hide all except first fieldset*/
+    #msform fieldset:not(:first-of-type) {
+        display: none;
+    }
+    /*inputs*/
+    #msform input, #msform textarea {
+        padding: 15px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        margin-bottom: 10px;
+        width: 100%;
+        box-sizing: border-box;
+        font-family: montserrat;
+        color: #2C3E50;
+        font-size: 13px;
+    }
+    /*buttons*/
+    #msform .action-button {
+        width: 100px;
+        background: #6f42c1;
+        font-weight: bold;
+        color: white;
+        border: 0 none;
+        border-radius: 1px;
+        cursor: pointer;
+        padding: 10px;
+        margin: 10px 5px;
+        text-decoration: none;
+        font-size: 14px;
+    }
+    #msform .action-button:hover, #msform .action-button:focus {
+        box-shadow: 0 0 0 2px white, 0 0 0 3px #27AE60;
+    }
+    /*headings*/
+    .fs-title {
+        font-size: 25px;
+        text-transform: uppercase;
+        color: #2C3E50;
+        margin-bottom: 10px;
+    }
+    .fs-subtitle {
+        font-weight: normal;
+        font-size: 15px;
+        color: #666;
+        margin-bottom: 20px;
+    }
+    /*progressbar*/
+    #progressbar {
+        margin-bottom: 30px;
+        overflow: hidden;
+      
+        /*CSS counters to number the steps*/
+        counter-reset: step;
+    }
+    #progressbar li {
+        list-style-type: none;
+        color: black;
+        text-transform: uppercase;
+        font-size: 9px;
+        width: 13.6%;
+        float: left;
+        position: relative;
+    }
+    #progressbar li:before {
+        content: counter(step);
+        counter-increment: step;
+        width: 20px;
+        line-height: 20px;
+        display: block;
+        font-size: 10px;
+        color: #333;
+        background: white;
+        border-radius: 3px;
+        margin: 0 auto 5px auto;
+    }
+    /*progressbar connectors*/
+    #progressbar li:after {
+        content: '';
+        width: 100%;
+        height: 2px;
+        background: white;
+        position: absolute;
+        left: -50%;
+        top: 9px;
+        z-index: -1; /*put it behind the numbers*/
+    }
+    #progressbar li:first-child:after {
+        /*connector not needed before the first step*/
+        content: none; 
+    }
+    /*marking active/completed steps green*/
+    /*The number of the step and the connector before it = green*/
+    #progressbar li.active:before,  #progressbar li.active:after{
+        background: #6f42c1;
+        color: white;
+    }
+    
+    
+    
+    
+</style>
+
+
+
+<form id="msform" method="post" action="{% url 'main:add_plant' %}">
+   
+    {% csrf_token %}
+
+    <ul id="progressbar">
+      <li class="active">Page 1</li>
+      <li>Page 2</li>
+      <li>Page 3</li>
+      <li>Page 4</li>
+      <li>Page 5</li>
+      <li>Page 6</li>
+      <li>Page 7</li>
+    </ul>
+
+    
+    <fieldset>
+      <h2 class="fs-title">Pievienot augu (koku)</h2>
+      <h3 class="fs-subtitle">Page 1</h3>
+      <input type="text" name="plant_name" placeholder="Koka nosaukums" />
+      <input type="text" name="plant_description" placeholder="Koka apraksts" />
+     
+      <input type="button" name="next" class="next action-button" value="Next" />
+    </fieldset>
+    <fieldset>
+      <h2 class="fs-title">Apraksts</h2>
+      <h3 class="fs-subtitle">Page 2</h3>
+              <input type="number" name="tree_height" placeholder="Koks: augums">
+              <input type="text" name="tree_growth_type" placeholder="Koks: augšanas veids:">
+              <input type="text" name="tree_habit" placeholder="Koks: habituss: (Tikai šķirnēm ar zarotu augšanas veidu)">
+              <input type="text" name="tree_fruit_production" placeholder="Koks: augļu ražošanas veids">
+              <input type="number" name="single_year_stem_thickness" placeholder="Viengadīgs dzinums: resnums">
+              <input type="number" name="interleaf_length" placeholder="Viengadīgs dzinums: starplapu posma garums">
+              <input type="text" name="sun_side_color" placeholder="Viengadīgs dzinums: krāsa saules pusē">
+              <input type="text" name="branch_puffiness" placeholder="Viengadīgs dzinums: pūkojums (dzinuma tālākajā daļā)">
+              <input type="number" name="branch_lenticels_count" placeholder="Viengadīgs dzinums: lenticeļu skaits">
+      <input type="button" name="previous" class="previous action-button" value="Previous" />
+      <input type="button" name="next" class="next action-button" value="Next" />
+    </fieldset>
+    <fieldset>
+      <h2 class="fs-title">Apraksts</h2>
+      <h3 class="fs-subtitle">Page 3</h3>
+              <input type="text" name="leaf_condition" placeholder="Lapas plātne: stāvoklis attiecībā pret dzinumu">
+              <input type="number" name="leaf_length" placeholder="Lapas plātne: garums">
+              <input type="number" name="leaf_width" placeholder="Lapas plātne: platums">
+              <input type="number" name="leaf_length_width_ratio" placeholder="Lapas plātne: garuma un platuma attiecība">
+              <input type="number" name="leaf_green_intensity" placeholder="Lapas plātne: zaļās krāsas intensitāte">
+              <input type="text" name="leaf_margin_serration" placeholder="Lapas plātne: malas zobojums (augšējā daļā)">
+              <input type="text" name="leaf_under_surface_puffiness" placeholder="Lapas plātne: apakšpuses pūkojums">
+              <input type="number" name="petiole_length" placeholder="Lapas kātiņš: garums">
+              <input type="text" name="petiole_anthocyanin_coloration" placeholder="Lapas kātiņš: pamatnes antociāna krāsojums">
+      <input type="button" name="previous" class="previous action-button" value="Previous" />
+      <input type="button" name="next" class="next action-button" value="Next" />
+    </fieldset>
+    <fieldset>
+      <h2 class="fs-title">Apraksts</h2>
+      <h3 class="fs-subtitle">Page 4</h3>
+              <input type="text" name="dominant_color_before_blooming" placeholder="Zieds: dominējošā krāsa īsi pirms izplaukšanas">
+              <input type="number" name="flower_diameter" placeholder="Zieds: diametrs, horizontāli piespiežot ziedlapas">
+              <input type="text" name="flower_arrangement" placeholder="Zieds: ziedlapu sakārtojums">
+              <input type="text" name="stamen_position_relative_to_pistils" placeholder="Zieds: drīksnas novietojums attiecībā pret putekšņlapām">
+              <input type="text" name="anthocyanin_coloration_degree_of_fruit_abscission" placeholder="Augļaizmetnis: antociāna krāsojuma pakāpe">
+              <input type="text" name="fruit_size" placeholder="Auglis: lielums">
+              <input type="number" name="fruit_length" placeholder="Auglis: garums">
+              <input type="number" name="fruit_diameter" placeholder="Auglis: diametrs">
+              <input type="number" name="fruit_length_diameter_ratio" placeholder="Auglis: garuma un diametra attiecība">
+      <input type="button" name="previous" class="previous action-button" value="Previous" />
+      <input type="button" name="next" class="next action-button" value="Next" />
+    </fieldset>
+    <fieldset>
+      <h2 class="fs-title">Apraksts</h2>
+      <h3 class="fs-subtitle">Page 5</h3>
+              <input type="text" name="fruit_base_shape" placeholder="Auglis: pamatforma">
+              <input type="text" name="fruit_groove" placeholder="Auglis: ribojums">
+              <input type="text" name="calyx_contraction" placeholder="Auglis: savilkums kausa galā">
+              <input type="text" name="calyx_size" placeholder="Auglis: kauslapu lielums">
+              <input type="number" name="calyx_length" placeholder="Auglis: kauslapu garums">
+              <input type="text" name="bark_russeting" placeholder="Auglis: mizas apsarme">
+              <input type="text" name="bark_oiliness" placeholder="Auglis: mizas taukainums">
+              <input type="text" name="fruit_surface_color_area" placeholder="Auglis: virskrāsas klātais laukums">
+              <input type="text" name="fruit_surface_color_tone" placeholder="Auglis: virskrāsas tonis (bez apsarmes)">
+      <input type="button" name="previous" class="previous action-button" value="Previous" />
+      <input type="button" name="next" class="next action-button" value="Next" />
+    </fieldset>
+    <fieldset>
+      <h2 class="fs-title">Apraksts</h2>
+      <h3 class="fs-subtitle">Page 6</h3>
+              <input type="number" name="fruit_surface_color_intensity" placeholder="Auglis: virskrāsas intensitāte">
+              <input type="text" name="fruit_surface_color_coverage" placeholder="Auglis: virskrāsas noklājums">
+              <input type="number" name="stripe_width" placeholder="Auglis: svītru platums">
+              <input type="text" name="fruit_side_rust" placeholder="Auglis: rūsinājums uz augļa sāniem">
+              <input type="text" name="calyx_rust" placeholder="Auglis: rūsinājums kausa bedrītē">
+              <input type="number" name="groove_count" placeholder="Auglis: lenticeļu skaits">
+              <input type="number" name="groove_size" placeholder="Auglis: lenticeļu lielums">
+              <input type="number" name="pedicel_length" placeholder="Auglis: kātiņa garums">
+              <input type="number" name="pedicel_thickness" placeholder="Auglis: kātiņa resnums">
+      <input type="button" name="previous" class="previous action-button" value="Previous" />
+      <input type="button" name="next" class="next action-button" value="Next" />
+    </fieldset>
+  
+    <fieldset>
+      <h2 class="fs-title">Apraksts</h2>
+      <h3 class="fs-subtitle">Page 7</h3>
+              <input type="number" name="pedicel_pit_depth" placeholder="Auglis: kātiņa bedrītes dziļums">
+              <input type="number" name="pedicel_pit_width" placeholder="Auglis: kātiņa bedrītes platums">
+              <input type="number" name="calyx_pit_depth" placeholder="Auglis: kausa bedrītes dziļums">
+              <input type="number" name="calyx_pit_width" placeholder="Auglis: kausa bedrītes platums">
+              <input type="text" name="flesh_density" placeholder="Auglis: mīkstuma blīvums">
+              <input type="text" name="flesh_color" placeholder="Auglis: mīkstuma krāsa">
+              <input type="text" name="seed_chamber_opening" placeholder="Auglis: sēklu cirkņu atvērums (šķērsgriezumā)">
+              <input type="text" name="flowering_onset" placeholder="Ziedēšanas sākums">
+              <input type="text" name="harvest_readiness" placeholder="Auglisu novākšanas gatavība">
+              <input type="text" name="consumption_readiness" placeholder="Augļu lietošanas gatavība">
+      <input type="button" name="previous" class="previous action-button" value="Previous" />
+      <button type="submit" class="submit action-button" id="submitBtn">Submit</button>
+    </fieldset>
+  </form>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.3/jquery.easing.min.js"></script>
+
+<script> 
+
+var current_fs, next_fs, previous_fs; 
+var left, opacity, scale; 
+var animating; 
+
+$(".next").click(function(){
+    if(animating) return false;
+    animating = true;
+
+    current_fs = $(this).parent();
+    next_fs = $(this).parent().next();
+
+    $("#progressbar li").eq($("fieldset").index(next_fs)).addClass("active");
+
+    //next fieldset
+    next_fs.show(); 
+
+    //hide fieldset with style
+    current_fs.animate({opacity: 0}, {
+        step: function(now, mx) {
+            //as the opacity of current_fs reduces to 0 - stored in "now"
+            //1. scale current_fs down to 80%
+            scale = 1 - (1 - now) * 0.2;
+            //2. bring next_fs from the right(50%)
+            left = (now * 50)+"%";
+            //3. increase opacity of next_fs to 1 as it moves in
+            opacity = 1 - now;
+            current_fs.css({
+        'transform': 'scale('+scale+')',
+        'position': 'absolute'
+      });
+            next_fs.css({'left': left, 'opacity': opacity});
+        }, 
+        duration: 800, 
+        complete: function(){
+            current_fs.hide();
+            animating = false;
+        }, 
+
+        easing: 'easeInOutBack'
+    });
+});
+
+$(".previous").click(function(){
+    if(animating) return false;
+    animating = true;
+
+    current_fs = $(this).parent();
+    previous_fs = $(this).parent().prev();
+
+    $("#progressbar li").eq($("fieldset").index(current_fs)).removeClass("active");
+
+
+    previous_fs.show(); 
+
+    current_fs.animate({opacity: 0}, {
+        step: function(now, mx) {
+
+            scale = 0.8 + (1 - now) * 0.2;
+
+            left = ((1-now) * 50)+"%";
+
+            opacity = 1 - now;
+            current_fs.css({'left': left});
+            previous_fs.css({'transform': 'scale('+scale+')', 'opacity': opacity});
+        }, 
+        duration: 800, 
+        complete: function(){
+            current_fs.hide();
+            animating = false;
+        }, 
+
+        easing: 'easeInOutBack'
+    });
+});
+</script>
+
+{% endblock %}
+

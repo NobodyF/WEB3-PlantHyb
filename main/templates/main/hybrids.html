@@ -1,0 +1,43 @@
+<!-- hybrid_list.html -->
+
+{% extends 'index.html' %}
+
+{% block content %}
+<style>
+    body, html {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+    <div class="container mt-5">
+        <div class="card p-4" style="background-color: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+            <h2 class="text-center mb-4" style="color: #6c757d;">Hybridized Plants</h2>
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Parent 1</th>
+                        <th>Parent 2</th>
+                        <th>Hybrid Name</th>
+
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for hybrid in hybrids %}
+                        <tr>
+                            <td>{{ hybrid.id }}</td>
+                            <td>{{ hybrid.parent1.plant_name }}</td>
+                            <td>{{ hybrid.parent2.plant_name }}</td>
+                            <td>{{ hybrid.hybrid_name }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<script>
+    function searchFunction() {
+        // Get the search input value and convert it to lowercase
+        var searchTerm = document.getElementById("search").value.trim().toLowerCase();
+        
+        var rows = document.getElementById("data").getElementsByTagName("tr");
+        
+        for (var i = 0; i < rows.length; i++) {
+            // Get the plant name from the second column and convert it to lowercase
+            var plantName = rows[i].getElementsByTagName("td")[1].innerText.toLowerCase();
+
+            // Get the plant type from the third column and convert it to lowercase
+            var plantType = rows[i].getElementsByTagName("td")[2].innerText.toLowerCase();
+            
+            // Check if the plant name or type includes the search term
+            if (plantName.includes(searchTerm) || plantType.includes(searchTerm)) {
+                rows[i].style.display = "";
+            } else {
+                rows[i].style.display = "none";
+            }
+        }
+    }
+    
+    setInterval(searchFunction, 300);
+</script>
+
+<style>
+    body, html {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+</style>
+
+<div class="container mt-5">
+    <div class="card p-4" style="background-color: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+        <!-- Search input -->
+        <input id="search" onchange="searchFunction()" class="form-control m-4" style="width:20%; top:50%; border: 3px solid #ccc; border-radius: 20px;" placeholder="Search...">
+
+        <h2 class="text-center mb-4" style="color: #6c757d;">Plants</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Type</th> <!-- New column for indicating hybrid or not -->
+                    <th>Actions</th> <!-- Added a new column for actions -->
+                </tr>
+            </thead>
+            <tbody id="data">
+                {% for plant in plants %}
+                    <tr>
+                        <td>{{ plant.id }}</td>
+                        <td>{{ plant.plant_name }}</td>
+                        <td>{{ plant.plant_description }}</td>
+                        <td>
+                            {% if plant.is_hybrid %}
+                                Hybrid
+                            {% else %}
+                                Normal
+                            {% endif %}
+                        </td>
+                        <td>
+                            <!-- Link to the detail page for the plant -->
+                            <a href="{% url 'main:show_plant_details' plant.id %}">Show Details</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

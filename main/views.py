@@ -1,75 +1,225 @@
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render, redirect
-from django.http import JsonResponse
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from django.urls import reverse
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth import logout
-from .forms import PlantForm
-from .forms import ContactForm
-from django.contrib import messages
-from .serializers import PlantSerializer
-from rest_framework import generics
-from web3 import Web3
-from django.contrib.auth.forms import UserCreationForm
-from .models import *
-from django.core.exceptions import ObjectDoesNotExist
-from .forms import HybridForm
-from datetime import datetime, timedelta, timezone
-from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login
+import os
 import json
-import requests
-from django.db import transaction
-from django.contrib.auth import logout as django_logout
-from django.core.serializers import serialize 
 import random
 import string
+from datetime import datetime, timedelta, timezone
 
+import requests
+from decouple import config  # FIXED: use decouple, not os.getenv directly
+from dotenv import load_dotenv
+from eth_utils import to_checksum_address
+from web3 import Web3
+
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import render, redirect
+from django.urls import reverse
+
+from rest_framework import generics
+
+from .forms import PlantForm, ContactForm, HybridForm
+from .models import Plant, Hybrid, PlantTransaction, HybridTransaction
+from .serializers import PlantSerializer
+
+# ---------------------------------------------------------------------------
+# Load .env once at module level
+# ---------------------------------------------------------------------------
+load_dotenv()
+
+
+# ---------------------------------------------------------------------------
+# FIXED: All secrets read from environment — never hardcoded
+# ---------------------------------------------------------------------------
+def get_alchemy_url():
+    return config('ALCHEMY_URL')
+
+def get_contract_address():
+    return to_checksum_address(config('CONTRACT_ADDRESS'))
+
+def get_private_key():
+    return config('PRIVATE_KEY')
+
+def get_eth_address():
+    return config('ETH_ADDRESS')
+
+def get_moralis_api_key():
+    # FIXED: was hardcoded JWT in source — now read from .env
+    return config('MORALIS_API_KEY')
+
+
+# ---------------------------------------------------------------------------
+# FIXED: ABI moved to a helper — consider putting this in a separate
+# abi.json file later (load with json.load) to keep views.py readable
+# ---------------------------------------------------------------------------
+def get_contract_abi():
+    return [
+        {
+            "anonymous": False,
+            "inputs": [
+                {"indexed": True, "internalType": "uint256", "name": "hybridId", "type": "uint256"},
+                {"indexed": True, "internalType": "address",  "name": "owner",    "type": "address"}
+            ],
+            "name": "HybridRegistered",
+            "type": "event"
+        },
+        {
+            "anonymous": False,
+            "inputs": [
+                {"indexed": True, "internalType": "uint256", "name": "plantId", "type": "uint256"},
+                {"indexed": True, "internalType": "address",  "name": "owner",   "type": "address"}
+            ],
+            "name": "PlantRegistered",
+            "type": "event"
+        },
+        {
+            "inputs": [
+                {"internalType": "uint256", "name": "hybridId",   "type": "uint256"},
+                {"internalType": "string",  "name": "hybridName", "type": "string"}
+            ],
+            "name": "registerHybrid",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {"internalType": "uint256", "name": "plantId",   "type": "uint256"},
+                {"internalType": "string",  "name": "plantName", "type": "string"}
+            ],
+            "name": "registerPlant",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {"internalType": "uint256", "name": "hybridId", "type": "uint256"},
+                {"internalType": "address", "name": "newOwner", "type": "address"}
+            ],
+            "name": "transferHybridOwnership",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {"internalType": "uint256", "name": "plantId",  "type": "uint256"},
+                {"internalType": "address", "name": "newOwner", "type": "address"}
+            ],
+            "name": "transferPlantOwnership",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+            "name": "hybrids",
+            "outputs": [
+                {"internalType": "address",  "name": "owner",      "type": "address"},
+                {"internalType": "uint256",  "name": "hybridId",   "type": "uint256"},
+                {"internalType": "string",   "name": "hybridName", "type": "string"}
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+            "name": "plants",
+            "outputs": [
+                {"internalType": "address",  "name": "owner",     "type": "address"},
+                {"internalType": "uint256",  "name": "plantId",   "type": "uint256"},
+                {"internalType": "string",   "name": "plantName", "type": "string"}
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        }
+    ]
+
+
+def get_web3_instance():
+    return Web3(Web3.HTTPProvider(get_alchemy_url()))
+
+
+# ---------------------------------------------------------------------------
+# Shared blockchain helper — FIXED: extracted duplicate tx logic into one fn
+# ---------------------------------------------------------------------------
+def _send_blockchain_transaction(fn_name, args):
+    """
+    Builds, signs, and sends a transaction to the plant registry contract.
+    Returns the tx hash as a hex string, or raises on failure.
+    """
+    w3               = get_web3_instance()
+    contract_address = get_contract_address()
+    contract         = w3.eth.contract(address=contract_address, abi=get_contract_abi())
+    eth_address      = get_eth_address()
+
+    nonce     = w3.eth.get_transaction_count(eth_address)
+    gas_price = w3.eth.gas_price
+    tx_data   = contract.encodeABI(fn_name=fn_name, args=args)
+
+    # FIXED: estimate gas instead of hardcoding 1_000_000
+    gas_estimate = contract.functions[fn_name](*args).estimate_gas(
+        {'from': eth_address}
+    )
+    gas_limit = int(gas_estimate * 1.2)  # 20 % buffer
+
+    raw_tx = {
+        'to':       contract_address,
+        'value':    0,
+        'gas':      gas_limit,
+        'gasPrice': gas_price,
+        'nonce':    nonce,
+        'data':     tx_data,
+    }
+    signed  = w3.eth.account.sign_transaction(raw_tx, get_private_key())
+    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    return tx_hash.hex()
+
+
+# ---------------------------------------------------------------------------
+# Views
+# ---------------------------------------------------------------------------
 
 def base(request):
-    try:
-        if request.user.is_authenticated:
-            context = {
-            }
-            return render(request, 'main/smain.html', context)
-        else:
-            context = {
-            }
-            return render(request, 'main/smain.html', context)
-    except:
-        context = {
-        }
-        return render(request, 'main/smain.html', context)
-    
+    # FIXED: removed pointless if/else that did the same thing both branches
+    return render(request, 'main/smain.html', {})
+
+
+def home(request):
+    return render(request, 'main/smain.html')
+
 
 def checklogin(request):
-    try: user = request.POST['text']
-    except: user = ""
-    try: password = request.POST['password']
-    except: password = ""
-
-    user = authenticate(request, username=user, password=password)
-
+    # FIXED: use .get() instead of bare try/except to swallow KeyError
+    username = request.POST.get('text', '')
+    password = request.POST.get('password', '')
+    user = authenticate(request, username=username, password=password)
     if user is not None:
         login(request, user)
-
     return HttpResponseRedirect(reverse('main:base'))
+
 
 def logout_one(request):
     logout(request)
     return HttpResponseRedirect(reverse('main:base'))
 
-def home(request):
-    
-    return render(request, 'main/smain.html')
 
+def login_view(request):
+    if request.method == 'POST':
+        email    = request.POST.get('email', '')
+        password = request.POST.get('password', '')
+        user     = authenticate(request, username=email, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('main:base')  # FIXED: was 'success_url_name' (broken)
+        return render(request, 'main/login.html', {'error_message': 'Invalid credentials'})
+    return render(request, 'main/login.html')
 
-@login_required
-def hybridizations(request):
-    plants = Plant.objects.all()
-    return render(request, 'main/hybridizations.html', {'plants': plants})
 
 @login_required
 def plants(request):
@@ -79,273 +229,44 @@ def plants(request):
     return render(request, 'main/plants.html', {'plants': plants})
 
 
-from web3 import Web3
-import web3
-import os
-
-
-from eth_utils import to_checksum_address
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Helper functions to retrieve environment variables
-def get_alchemy_url():
-    return os.getenv('ALCHEMY_URL')
-
-def get_contract_address():
-    return to_checksum_address(os.getenv('CONTRACT_ADDRESS'))
-
-def get_private_key():
-    return os.getenv('PRIVATE_KEY')
-
-def get_eth_address():
-    return os.getenv('ETH_ADDRESS')
-
-def get_contract_abi():
-    return [
-        {
-            "anonymous": False,
-            "inputs": [
-                {
-                    "indexed": True,
-                    "internalType": "uint256",
-                    "name": "hybridId",
-                    "type": "uint256"
-                },
-                {
-                    "indexed": True,
-                    "internalType": "address",
-                    "name": "owner",
-                    "type": "address"
-                }
-            ],
-            "name": "HybridRegistered",
-            "type": "event"
-        },
-        {
-            "anonymous": False,
-            "inputs": [
-                {
-                    "indexed": True,
-                    "internalType": "uint256",
-                    "name": "plantId",
-                    "type": "uint256"
-                },
-                {
-                    "indexed": True,
-                    "internalType": "address",
-                    "name": "owner",
-                    "type": "address"
-                }
-            ],
-            "name": "PlantRegistered",
-            "type": "event"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "uint256",
-                    "name": "hybridId",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "string",
-                    "name": "hybridName",
-                    "type": "string"
-                }
-            ],
-            "name": "registerHybrid",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "uint256",
-                    "name": "plantId",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "string",
-                    "name": "plantName",
-                    "type": "string"
-                }
-            ],
-            "name": "registerPlant",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "uint256",
-                    "name": "hybridId",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "address",
-                    "name": "newOwner",
-                    "type": "address"
-                }
-            ],
-            "name": "transferHybridOwnership",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "uint256",
-                    "name": "plantId",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "address",
-                    "name": "newOwner",
-                    "type": "address"
-                }
-            ],
-            "name": "transferPlantOwnership",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "uint256",
-                    "name": "",
-                    "type": "uint256"
-                }
-            ],
-            "name": "hybrids",
-            "outputs": [
-                {
-                    "internalType": "address",
-                    "name": "owner",
-                    "type": "address"
-                },
-                {
-                    "internalType": "uint256",
-                    "name": "hybridId",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "string",
-                    "name": "hybridName",
-                    "type": "string"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "uint256",
-                    "name": "",
-                    "type": "uint256"
-                }
-            ],
-            "name": "plants",
-            "outputs": [
-                {
-                    "internalType": "address",
-                    "name": "owner",
-                    "type": "address"
-                },
-                {
-                    "internalType": "uint256",
-                    "name": "plantId",
-                    "type": "uint256"
-                },
-                {
-                    "internalType": "string",
-                    "name": "plantName",
-                    "type": "string"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        }
-    ]
-
-def get_web3_instance():
-    alchemy_url = get_alchemy_url()
-    return Web3(Web3.HTTPProvider(alchemy_url))
-
-def add_plant(request):
-    if request.method == 'POST':
-        form = PlantForm(request.POST, owner=request.user)
-
-        if form.is_valid():
-            try:
-                plant = form.save(commit=False)
-                plant_name = form.cleaned_data['plant_name']
-                plant.owner = request.user  
-                plant.save()
-
-                # Create contract instance and call registerPlant function
-                w3 = get_web3_instance()
-                contract_address = get_contract_address()
-                contract_abi = get_contract_abi()
-
-                plant_contract_instance = w3.eth.contract(address=contract_address, abi=contract_abi)
-                plant_id = int(plant.id)
-                nonce = w3.eth.get_transaction_count(get_eth_address())
-                tx_data = plant_contract_instance.encodeABI(
-                    fn_name="registerPlant",
-                    args=[plant_id, plant_name]
-                )
-                gas_price = w3.eth.gas_price
-                gas_limit = 1000000  # some random test gas limit
-                transaction = {
-                    'to': contract_address,
-                    'value': 0,
-                    'gas': gas_limit,
-                    'gasPrice': gas_price,
-                    'nonce': nonce,
-                    'data': tx_data,
-                }
-                private_key = get_private_key()
-                signed_txn = w3.eth.account.sign_transaction(transaction, private_key)
-                tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-
-                # Convert tx_hash to string before saving
-                tx_hash_str = tx_hash.hex()
-
-                # Save transaction hash along with plant details
-                PlantTransaction.objects.create(
-                    plant=plant,
-                    tx_hash=tx_hash_str
-                )
-
-                return redirect('main:plants')
-            except Exception as e:
-                error_message = f"Failed to register plant on the blockchain: {str(e)}"
-                print(error_message)
-                return HttpResponse(error_message)
-    else:
-        form = PlantForm()
-    return render(request, 'main/add_plant.html', {'form': form})
+@login_required
+def hybridizations(request):
+    plants = Plant.objects.all()
+    return render(request, 'main/hybridizations.html', {'plants': plants})
 
 
 @login_required
-def profile(request):
-    user_plants = Plant.objects.filter(owner=request.user)
-    plant_transactions = PlantTransaction.objects.filter(plant__in=user_plants)
-    
-    user_hybrids = Hybrid.objects.filter(owner=request.user)
-    hybrid_transactions = HybridTransaction.objects.filter(hybrid__in=user_hybrids)
-    
-    return render(request, 'main/profile.html', {'plant_transactions': plant_transactions, 'hybrid_transactions': hybrid_transactions})
+def hybrids(request):
+    hybrids = Hybrid.objects.all()
+    return render(request, 'main/hybrids.html', {'hybrids': hybrids})
 
 
+@login_required
+def add_plant(request):
+    if request.method == 'POST':
+        form = PlantForm(request.POST, owner=request.user)
+        if form.is_valid():
+            try:
+                plant           = form.save(commit=False)
+                plant.owner     = request.user
+                plant.save()
+
+                # FIXED: uses shared helper instead of duplicated tx code
+                tx_hash = _send_blockchain_transaction(
+                    fn_name='registerPlant',
+                    args=[int(plant.id), plant.plant_name]
+                )
+                PlantTransaction.objects.create(plant=plant, tx_hash=tx_hash)
+                messages.success(request, f'Plant registered on blockchain. Tx: {tx_hash}')
+                return redirect('main:plants')
+
+            except Exception as e:
+                # FIXED: show error in template via messages, not raw HttpResponse
+                messages.error(request, f'Blockchain registration failed: {e}')
+                return render(request, 'main/add_plant.html', {'form': form})
+    else:
+        form = PlantForm()
+    return render(request, 'main/add_plant.html', {'form': form})
 
 
 @login_required
@@ -353,117 +274,90 @@ def perform_hybridization(request):
     if request.method == 'POST':
         parent1_id = request.POST.get('parent1')
         parent2_id = request.POST.get('parent2')
-        
-        
-       
-        
-        # Redirect to hybridization results with the newly created hybrid's parent IDs
-        return redirect('main:hybridization_results',parent1_id=parent1_id,parent2_id=parent2_id)
-
+        return redirect('main:hybridization_results',
+                        parent1_id=parent1_id,
+                        parent2_id=parent2_id)
     plants = Plant.objects.all()
     return render(request, 'main/hybridizations.html', {'plants': plants})
 
-from .models import Plant, Hybrid, HybridTransaction
+
 @login_required
 def hybridization_results(request, parent1_id=None, parent2_id=None):
     if request.method == 'POST':
         form = HybridForm(request.POST, owner=request.user)
-
         if form.is_valid():
             try:
-                # Save hybrid information to the database
-                hybrid = form.save(commit=False)
-                hybrid_name = form.cleaned_data['hybrid_name']
-                hybrid.hybrid_name = hybrid_name
-                
-                hybrid.is_hybrid = True  # Mark as hybrid TODO:
-                hybrid.owner = request.user  
-
+                hybrid            = form.save(commit=False)
+                hybrid.hybrid_name = form.cleaned_data['hybrid_name']
+                hybrid.is_hybrid  = True
+                hybrid.owner      = request.user
                 hybrid.save()
 
-                # Create contract instance and call registerHybrid function
-                w3 = get_web3_instance()
-                contract_address = get_contract_address()
-                contract_abi = get_contract_abi()
-                hybrid_contract_instance = w3.eth.contract(address=contract_address, abi=contract_abi)
-                hybrid_id = int(hybrid.id)
-                nonce = w3.eth.get_transaction_count(get_eth_address())
-                tx_data = hybrid_contract_instance.encodeABI(
-                    fn_name="registerHybrid",
-                    args=[hybrid_id, hybrid_name]
+                # FIXED: uses shared helper
+                tx_hash = _send_blockchain_transaction(
+                    fn_name='registerHybrid',
+                    args=[int(hybrid.id), hybrid.hybrid_name]
                 )
-                gas_price = w3.eth.gas_price
-                gas_limit = 1000000  # You may need to adjust this value
-                transaction = {
-                    'to': contract_address,
-                    'value': 0,
-                    'gas': gas_limit,
-                    'gasPrice': gas_price,
-                    'nonce': nonce,
-                    'data': tx_data,
-                }
-                private_key = get_private_key()
-                signed_txn = w3.eth.account.sign_transaction(transaction, private_key)
-                tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-
-                # Convert tx_hash to string before saving
-                tx_hash_str = tx_hash.hex()
-
-                # Save transaction hash along with hybrid details
-                HybridTransaction.objects.create(
-                    hybrid=hybrid,
-                    tx_hash=tx_hash_str
-                )
-
+                HybridTransaction.objects.create(hybrid=hybrid, tx_hash=tx_hash)
+                messages.success(request, f'Hybrid registered on blockchain. Tx: {tx_hash}')
                 return redirect('main:hybrids')
+
             except Exception as e:
-                error_message = f"Failed to register hybrid on the blockchain: {str(e)}"
-                print(error_message)
-                return HttpResponse(error_message)
-        else:
-             return JsonResponse({'errors': form.errors})
-    else:
-        try:
-            parent1 = Plant.objects.get(id=parent1_id)
-            parent2 = Plant.objects.get(id=parent2_id)
-            
-            # Prepare JSON data for parent plants
-            parent1_data = {'id': parent1.id, 'plant_name': parent1.plant_name}
-            parent2_data = {'id': parent2.id, 'plant_name': parent2.plant_name}
+                messages.error(request, f'Blockchain registration failed: {e}')
+                return render(request, 'main/hybridization_results.html', {'form': form})
+        return JsonResponse({'errors': form.errors}, status=400)
 
-            for field in parent1._meta.fields:
-                field_name = field.name
-                field_value = getattr(parent1, field_name)
-                parent1_data[field_name] = field_value
+    # GET — load both parent plants
+    try:
+        parent1 = Plant.objects.get(id=parent1_id)
+        parent2 = Plant.objects.get(id=parent2_id)
+    except Plant.DoesNotExist:
+        messages.error(request, 'One or more selected plants do not exist.')
+        return redirect('main:hybridizations')
 
-            for field in parent2._meta.fields:
-                field_name = field.name
-                field_value = getattr(parent2, field_name)
-                parent2_data[field_name] = field_value
+    def plant_to_dict(plant):
+        data = {}
+        for field in plant._meta.fields:
+            if field.name == 'owner':
+                continue  # FIXED: skip owner instead of pop() after the fact
+            data[field.name] = getattr(plant, field.name)
+        return data
 
-            # Remove 'owner' field from JSON data if necessary
-            parent1_data.pop('owner', None)
-            parent2_data.pop('owner', None)
-
-            parent1_json = json.dumps(parent1_data, indent=2)
-            parent2_json = json.dumps(parent2_data, indent=2)
-
-            form = HybridForm(initial={'parent1': parent1, 'parent2': parent2})
-        except Plant.DoesNotExist:
-            return HttpResponse("One or more selected plants do not exist.")
-
+    form = HybridForm(initial={'parent1': parent1, 'parent2': parent2})
     return render(request, 'main/hybridization_results.html', {
-        'form': form, 
-        'parent1_id': parent1_id, 
-        'parent2_id': parent2_id,
-        'parent1_json': parent1_json, 
-        'parent2_json': parent2_json
+        'form':        form,
+        'parent1_id':  parent1_id,
+        'parent2_id':  parent2_id,
+        'parent1_json': json.dumps(plant_to_dict(parent1), indent=2),
+        'parent2_json': json.dumps(plant_to_dict(parent2), indent=2),
     })
 
+
 @login_required
-def hybrids(request):
-    hybrids = Hybrid.objects.all()
-    return render(request, 'main/hybrids.html', {'hybrids': hybrids})
+def profile(request):
+    user_plants       = Plant.objects.filter(owner=request.user)
+    plant_transactions = PlantTransaction.objects.filter(plant__in=user_plants)
+    user_hybrids       = Hybrid.objects.filter(owner=request.user)
+    hybrid_transactions = HybridTransaction.objects.filter(hybrid__in=user_hybrids)
+    return render(request, 'main/profile.html', {
+        'plant_transactions':  plant_transactions,
+        'hybrid_transactions': hybrid_transactions,
+    })
+
+
+@login_required
+def show_plant_details(request, plant_id):
+    try:
+        plant = Plant.objects.get(id=plant_id)
+    except Plant.DoesNotExist:
+        return JsonResponse({'error': 'Plant not found'}, status=404)
+
+    data = {}
+    for field in plant._meta.fields:
+        value = getattr(plant, field.name)
+        data[field.name] = str(value) if field.name == 'owner' else value
+    return JsonResponse(data, json_dumps_params={'indent': 2})
+
 
 @login_required
 def contact_us(request):
@@ -471,169 +365,67 @@ def contact_us(request):
         form = ContactForm(request.POST)
         if form.is_valid():
             form.save()
-           
-            return redirect('main:contact_us')  
+            messages.success(request, 'Message sent!')
+            return redirect('main:contact_us')
     else:
         form = ContactForm()
-
     return render(request, 'main/smain.html', {'form': form})
 
+
+# ---------------------------------------------------------------------------
+# Moralis Web3 auth — FIXED: API key now from .env
+# ---------------------------------------------------------------------------
+def request_message(request):
+    data    = json.loads(request.body)
+    present = datetime.now(timezone.utc)
+    expiry  = str((present + timedelta(minutes=1)).isoformat()[:-6]) + 'Z'
+
+    response = requests.post(
+        'https://authapi.moralis.io/challenge/request/evm',
+        json={
+            'domain':         'defi.finance',
+            'chainId':        1,
+            'address':        data['address'],
+            'statement':      'Please confirm',
+            'uri':            'https://defi.finance/',
+            'expirationTime': expiry,
+            'notBefore':      '2020-01-01T00:00:00.000Z',
+            'timeout':        15,
+        },
+        headers={'X-API-KEY': get_moralis_api_key()},  # FIXED
+    )
+    return JsonResponse(response.json())
+
+
+def verify_message(request):
+    data     = json.loads(request.body)
+    response = requests.post(
+        'https://authapi.moralis.io/challenge/verify/evm',
+        json=data,
+        headers={'X-API-KEY': get_moralis_api_key()},  # FIXED
+    )
+    if response.status_code == 201:
+        eth_address = response.json().get('address')
+        user, _ = User.objects.get_or_create(
+            username=eth_address,
+            defaults={'is_staff': False, 'is_superuser': False}
+        )
+        if user.is_active:
+            login(request, user)
+            request.session['auth_info']    = data
+            request.session['verified_data'] = response.json()
+            return JsonResponse({'user': user.username})
+        return JsonResponse({'error': 'account disabled'}, status=403)
+    return JsonResponse(response.json(), status=response.status_code)
+
+
+# ---------------------------------------------------------------------------
+# REST API
+# ---------------------------------------------------------------------------
 class PlantList(generics.ListCreateAPIView):
-    queryset = Plant.objects.all()
+    queryset         = Plant.objects.all()
     serializer_class = PlantSerializer
 
 class PlantDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Plant.objects.all()
+    queryset         = Plant.objects.all()
     serializer_class = PlantSerializer
-
-    # blockchain testing TODO:
-
-
-
-
-
-def login_view(request):
-    if request.method == 'POST':
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-        user = authenticate(request, email=email, password=password)
-        if user is not None:
-            login(request, user)
-            # success page, or return JSON response
-            return redirect('success_url_name')
-        else:
-            # Return an error message
-            return render(request, 'main/login.html', {'error_message': 'Invalid credentials'})
-    else:
-        # render the login page
-        return render(request, 'main/login.html')
-    
-
-
-API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6ImM3MmU5MTM4LTcxYmUtNDA0NC04NDEwLThhN2UzYWU0MDhhZiIsIm9yZ0lkIjoiMzgwMjIwIiwidXNlcklkIjoiMzkwNjk0IiwidHlwZUlkIjoiZGZkZmIzYjEtZGE2ZC00ZjJhLWFiOWItYmFjM2M3ZTA3YTQyIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3MDkwNTEwNTAsImV4cCI6NDg2NDgxMTA1MH0.wlDNetT8kvGmfRKblVkIaV58m25pxVPxT8TJZni1QoM'
-if API_KEY == 'WEB3_API_KEY_HERE':
-    print("API key is not set")
-    raise SystemExit
-def plant_hybridization(request):
-    return render(request, 'main/login.html', {})
-def my_profile(request):
-    return render(request, 'main/profile.html', {})
-def request_message(request):
-    data = json.loads(request.body)
-    print(data)
-
-#setting request expiration time to 1 minute after the present->
-    present = datetime.now(timezone.utc)
-    present_plus_one_m = present + timedelta(minutes=1)
-    expirationTime = str(present_plus_one_m.isoformat())
-    expirationTime = str(expirationTime[:-6]) + 'Z'
-
-    REQUEST_URL = 'https://authapi.moralis.io/challenge/request/evm'
-    request_object = {
-      "domain": "defi.finance",
-      "chainId": 1,
-      "address": data['address'],
-      "statement": "Please confirm",
-      "uri": "https://defi.finance/",
-      "expirationTime": expirationTime,
-      "notBefore": "2020-01-01T00:00:00.000Z",
-      "timeout": 15
-    }
-    x = requests.post(
-        REQUEST_URL,
-        json=request_object,
-        headers={'X-API-KEY': API_KEY})
-    return JsonResponse(json.loads(x.text))
-
-def verify_message(request):
-    data = json.loads(request.body)
-    print(data)
-    REQUEST_URL = 'https://authapi.moralis.io/challenge/verify/evm'
-    x = requests.post(
-        REQUEST_URL,
-        json=data,
-        headers={'X-API-KEY': API_KEY})
-    print(json.loads(x.text))
-    print(x.status_code)
-    if x.status_code == 201:
-        # user can authenticate
-        eth_address=json.loads(x.text).get('address')
-        print("eth address", eth_address)
-        try:
-            user = User.objects.get(username=eth_address)
-        except User.DoesNotExist:
-            user = User(username=eth_address)
-            user.is_staff = False
-            user.is_superuser = False
-            user.save()
-        if user is not None:
-            if user.is_active:
-                login(request, user)
-                request.session['auth_info'] = data
-                request.session['verified_data'] = json.loads(x.text)
-                return JsonResponse({'user': user.username})
-            else:
-                return JsonResponse({'error': 'account disabled'})
-    else:
-        return JsonResponse(json.loads(x.text))
-  
-
-
-def staff_member_required(view_func):
-
-    def _checklogin(request, *args, **kwargs):
-        if not request.user.is_staff:
-            return redirect('main:home')  
-        return view_func(request, *args, **kwargs)
-    return _checklogin
-
-#@staff_member_required
-
-def generate_random_id():
-    characters = string.digits  # Use only digits
-    random_id = ''.join(random.choices(characters, k=5))
-    return random_id
-
-import json
-
-@login_required
-def show_plant_details(request, plant_id):
-    try:
-        plant = Plant.objects.get(id=plant_id)
-        plant_data = {}
-        for field in plant._meta.fields:
-            field_name = field.name
-            field_value = getattr(plant, field_name)
-
-            # Convert User object to string representation
-            if field_name == 'owner':
-                field_value = str(field_value)
-
-            plant_data[field_name] = field_value
-
-        json_data = json.dumps(plant_data, indent=2)
-        return HttpResponse(json_data, content_type='application/json')
-    except Plant.DoesNotExist:
-        return JsonResponse({'error': 'Plant not found'}, status=404)
-    
-# WHITE version FIXME:
-
-# def show_plant_details(request, plant_id):
-#     try:
-#         plant = Plant.objects.get(id=plant_id)
-#         plant_data = {
-#             'id': plant.id,
-#             'plant_name': plant.plant_name,
-#             'plant_description': plant.plant_description,
-#             # Include other fields as needed
-#         }
-#         # Convert plant_data dictionary to a JSON string with indentation for better readability
-#         json_data = json.dumps(plant_data, indent=4)
-
-#         # Create HTML content to display JSON data in a preformatted block
-#         html_content = f'<pre>{json_data}</pre>'
-
-#         return HttpResponse(html_content)
-#     except Plant.DoesNotExist:
-#         return HttpResponse('<p>Plant not found</p>', status=404)
-    
